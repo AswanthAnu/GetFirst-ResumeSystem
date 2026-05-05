@@ -1,0 +1,27 @@
+# Secrets
+.env
+
+# SQLite database (personal data)
+*.db
+
+# Generated outputs (personal data)
+output/
+
+# Temp files
+tmp/
+.tmp/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

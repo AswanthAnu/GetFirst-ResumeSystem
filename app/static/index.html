@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GetFirst — Resume System</title>
+  <meta name="description"
+    content="Upload your Overleaf CV PDF and a job description. Get a tailored LaTeX CV and cover letter — no hallucination, no fabricated experience." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">GetFirst <span class="logo-sub">Resume System</span></span>
+      </div>
+      <nav class="tab-nav">
+        <button id="tab-generate" class="tab-btn active" onclick="switchTab('generate')">Generate</button>
+        <button id="tab-history" class="tab-btn" onclick="switchTab('history')">Applied Jobs</button>
+      </nav>
+      <div class="status-bar" id="status-bar">
+        <span class="status-dot idle"></span>
+        <span id="status-text">Ready</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Generate Tab ───────────────────────────────────────────── -->
+  <main id="panel-generate" class="panel active">
+    <div class="workspace">
+
+      <!-- Left: Input Panel -->
+      <section class="pane pane-input">
+        <div class="pane-header">
+          <h2 class="pane-title">Job Input</h2>
+          <span class="pane-badge">Step 1</span>
+        </div>
+
+        <!-- PDF Upload -->
+        <div class="form-group">
+          <label class="form-label" for="input-cv-pdf">CV (PDF from Overleaf)</label>
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('input-cv-pdf').click()">
+            <input id="input-cv-pdf" type="file" accept=".pdf" style="display:none" onchange="handleFileSelect(this)" />
+            <div class="upload-icon" id="upload-icon">📄</div>
+            <div class="upload-text" id="upload-text">
+              <span class="upload-primary">Click to upload your CV PDF</span>
+              <span class="upload-sub">Exported from Overleaf</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="input-job-title">Job Title</label>
+          <input id="input-job-title" type="text" class="form-control" placeholder="e.g. Senior Software Engineer"
+            autocomplete="off" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="input-company">Company</label>
+          <input id="input-company" type="text" class="form-control" placeholder="e.g. Acme Corp" autocomplete="off" />
+        </div>
+
+        <div class="form-group form-group-grow">
+          <label class="form-label" for="input-jd">Job Description</label>
+          <textarea id="input-jd" class="form-control textarea-jd" placeholder="Paste the full job description here…"
+            spellcheck="false"></textarea>
+        </div>
+
+        <div class="action-bar">
+          <button id="btn-generate" class="btn btn-primary" onclick="handleGenerate()">
+            <span class="btn-icon">✦</span> Generate
+          </button>
+          <button id="btn-regenerate" class="btn btn-ghost" onclick="handleRegenerate()" disabled>
+            ↺ Regenerate
+          </button>
+        </div>
+      </section>
+
+      <!-- Right: Output Panel -->
+      <section class="pane pane-output" id="pane-output">
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">◈</div>
+          <p class="empty-title">No output yet</p>
+          <p class="empty-sub">Upload your CV PDF, fill in the job details,<br>and click <strong>Generate</strong>.</p>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-state hidden" id="loading-state">
+          <div class="spinner"></div>
+          <p class="loading-title">Running pipeline…</p>
+          <p class="empty-sub">This may take 30–90 seconds while the LLM<br>analyzes your CV and generates tailored
+            output.</p>
+        </div>
+
+        <!-- Output Content -->
+        <div class="output-content hidden" id="output-content">
+          <div class="pane-header">
+            <h2 class="pane-title">Preview</h2>
+            <div class="output-tabs">
+              <button class="output-tab active" id="otab-cv" onclick="switchOutputTab('cv')">CV (LaTeX)</button>
+              <button class="output-tab" id="otab-text" onclick="switchOutputTab('text')">Original Text</button>
+              <button class="output-tab" id="otab-letter" onclick="switchOutputTab('letter')">Cover Letter</button>
+              <button class="output-tab" id="otab-changes" onclick="switchOutputTab('changes')">Changes</button>
+            </div>
+          </div>
+
+          <!-- Generated LaTeX CV -->
+          <div class="output-panel" id="opanel-cv">
+            <div class="diff-toolbar">
+              <span style="font-size:0.78rem;color:var(--text-3)">Generated LaTeX — ready to paste into Overleaf</span>
+              <button class="btn-icon-only" onclick="copyCV()" title="Copy LaTeX to clipboard">⧉ Copy</button>
+            </div>
+            <div class="code-view" id="cv-view"></div>
+          </div>
+
+          <!-- Original Extracted Text -->
+          <div class="output-panel hidden" id="opanel-text">
+            <div class="diff-toolbar">
+              <span style="font-size:0.78rem;color:var(--text-3)">Plain text extracted from your PDF</span>
+            </div>
+            <div class="code-view" id="text-view"></div>
+          </div>
+
+          <!-- Cover Letter -->
+          <div class="output-panel hidden" id="opanel-letter">
+            <div class="diff-toolbar">
+              <span style="font-size:0.78rem;color:var(--text-3)">Saved as .docx on Confirm</span>
+              <button class="btn-icon-only" onclick="copyLetter()" title="Copy cover letter text">⧉ Copy</button>
+            </div>
+            <div class="letter-view" id="letter-view"></div>
+          </div>
+
+          <!-- Changes Summary -->
+          <div class="output-panel hidden" id="opanel-changes">
+            <div class="changes-view" id="changes-view"></div>
+          </div>
+
+          <!-- Validation Banner -->
+          <div class="validation-banner" id="validation-banner"></div>
+
+          <!-- Confirm Bar -->
+          <div class="confirm-bar">
+            <div class="confirm-meta">
+              <input id="input-applied-date" type="date" class="form-control date-input"
+                title="Applied date (optional)" />
+              <span class="confirm-hint">Set applied date (optional)</span>
+            </div>
+            <button id="btn-confirm" class="btn btn-success" onclick="handleConfirm()">
+              ✓ Confirm & Save
+            </button>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </main>
+
+  <!-- ── History Tab ────────────────────────────────────────────── -->
+  <main id="panel-history" class="panel hidden">
+    <div class="history-container">
+      <div class="history-header">
+        <h2 class="section-title">Applied Jobs</h2>
+        <div class="history-actions">
+          <input
+            id="history-search"
+            type="text"
+            class="form-control search-input"
+            placeholder="Search by title or company…"
+            oninput="filterHistory()"
+          />
+          <button class="btn btn-ghost btn-sm" onclick="loadHistory()">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="history-list" class="history-list">
+        <p class="empty-sub" style="text-align:center; padding: 3rem;">No applications saved yet.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Application Detail Modal ──────────────────────────────── -->
+  <div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-header" id="modal-header"></div>
+      <div class="modal-tabs">
+        <button class="output-tab active" id="mtab-cv" onclick="switchModalTab('cv')">CV (LaTeX)</button>
+        <button class="output-tab" id="mtab-original" onclick="switchModalTab('original')">Original Text</button>
+        <button class="output-tab" id="mtab-jd" onclick="switchModalTab('jd')">Job Description</button>
+        <button class="output-tab" id="mtab-changes" onclick="switchModalTab('changes')">Changes</button>
+      </div>
+      <div class="modal-body" id="modal-body-cv"></div>
+      <div class="modal-body hidden" id="modal-body-original"></div>
+      <div class="modal-body hidden" id="modal-body-jd"></div>
+      <div class="modal-body hidden" id="modal-body-changes"></div>
+      <div class="modal-footer">
+        <button id="modal-btn-applied" class="btn btn-success btn-sm" onclick="markApplied()">Mark as Applied</button>
+        <span class="modal-status-badge" id="modal-status-badge"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast ─────────────────────────────────────────────────── -->
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+
+</html>

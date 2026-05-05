@@ -1,0 +1,84 @@
+\documentclass[10pt,a4paper]{article}
+
+% -------------------- Packages --------------------
+\usepackage[left=0.5in,right=0.5in,top=0.3in,bottom=0.5in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{helvet}
+\usepackage[hidelinks]{hyperref}
+\renewcommand{\familydefault}{\sfdefault}
+
+% -------------------- Formatting --------------------
+\pagenumbering{gobble}
+\setlength{\parindent}{0pt}
+\setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}
+
+\titleformat{\section}
+  {\bfseries\small}
+  {}
+  {0em}
+  {}[\titlerule]
+
+% -------------------- Document --------------------
+\begin{document}
+
+% -------------------- Header --------------------
+\begin{center}{\Large \textbf{Aswanth Manoharan}} \end{center}
+
+\begin{center}
+8 Costguard Terrace, Bray, Ireland l
+\href{mailto:aswanthanu2024@gmail.com}{aswanthanu2024@gmail.com}  l  
++353 877617142  l  
+\href{https://www.linkedin.com/in/aswanth-manoharan}{LinkedIn}  l  
+\href{https://github.com/AswanthAnu}{GitHub}
+\end{center}
+
+\vspace{-15pt}
+
+% -------------------- Summary --------------------
+\section*{Summary}
+
+[SUMMARY_TEXT]
+
+\vspace{-8pt}
+
+% -------------------- Experience --------------------
+\section*{Experience}
+
+% FORMAT:
+% \textbf{ROLE} - COMPANY, LOCATION \hfill DATES
+% \begin{itemize}
+%   \item Bullet
+% \end{itemize}
+
+[EXPERIENCE_ENTRIES]
+
+\vspace{-8pt}
+
+% -------------------- Projects --------------------
+\section*{Projects}
+
+% FORMAT:
+% \textbf{PROJECT TITLE} \hfill YEAR \\
+% \textit{Tech Stack: ...}
+% \begin{itemize}
+%   \item Bullet
+% \end{itemize}
+
+[PROJECT_ENTRIES]
+
+\vspace{-8pt}
+
+% -------------------- Skills --------------------
+\section*{Skills}
+
+[SKILLS_TEXT]
+
+\vspace{-8pt}
+
+% -------------------- Education --------------------
+\section*{Education}
+
+[EDUCATION_ENTRIES]
+
+\end{document}
