@@ -17,7 +17,17 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-DB_PATH = Path(__file__).parent.parent / os.getenv("DB_PATH", "./applications.db").lstrip("./")
+if os.getenv("VERCEL"):
+    DB_PATH = Path("/tmp") / "applications.db"
+    _orig = Path(__file__).parent.parent / "applications.db"
+    if _orig.exists() and not DB_PATH.exists():
+        import shutil
+        try:
+            shutil.copy(str(_orig), str(DB_PATH))
+        except Exception:
+            pass
+else:
+    DB_PATH = Path(__file__).parent.parent / os.getenv("DB_PATH", "./applications.db").lstrip("./")
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS applications (
@@ -37,6 +47,7 @@ CREATE TABLE IF NOT EXISTS applications (
 
 
 def _get_conn() -> sqlite3.Connection:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn

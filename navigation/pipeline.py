@@ -33,8 +33,12 @@ from tools.db_writer import save_application, init_db
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-TMP_DIR = _ROOT / os.getenv("TMP_DIR", "./.tmp").lstrip("./")
-OUTPUT_DIR = _ROOT / os.getenv("OUTPUT_DIR", "./output").lstrip("./")
+if os.getenv("VERCEL"):
+    TMP_DIR = Path("/tmp") / ".tmp"
+    OUTPUT_DIR = Path("/tmp") / "output"
+else:
+    TMP_DIR = _ROOT / os.getenv("TMP_DIR", "./.tmp").lstrip("./")
+    OUTPUT_DIR = _ROOT / os.getenv("OUTPUT_DIR", "./output").lstrip("./")
 MAX_EDITS = int(os.getenv("MAX_EDITS", "10"))
 
 
