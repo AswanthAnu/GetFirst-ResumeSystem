@@ -300,7 +300,11 @@ async function handleConfirm() {
     const json = await res.json();
     if (!res.ok) throw new Error(json.detail || 'Save failed.');
 
-    showToast(`✓ Saved! ID: ${json.application_id.slice(0, 8)}… — CV & cover letter written to output/`, 'success');
+    const appId = json.application_id;
+    const dlPath = json.cover_letter_path || '';
+    const isUrl = dlPath.startsWith('http');
+    const dlLink = `<a href="/api/applications/${appId}/download" style="color:#fff;text-decoration:underline;margin-left:8px" target="_blank">⬇ Download DOCX</a>`;
+    showToast(`Saved! ${isUrl ? dlLink : 'CV & cover letter generated.'}`, 'success');
     currentResult = null;
     document.getElementById('btn-confirm').disabled = true;
     document.getElementById('btn-regenerate').disabled = true;
@@ -444,6 +448,17 @@ async function openModal(id) {
     document.getElementById('modal-btn-applied').style.display =
       r.status === 'applied' ? 'none' : 'inline-flex';
 
+    // Show download button if cover letter exists
+    const dlBtn = document.getElementById('modal-btn-download');
+    if (dlBtn) {
+      if (r.cover_letter_path) {
+        dlBtn.href = `/api/applications/${r.id}/download`;
+        dlBtn.style.display = 'inline-flex';
+      } else {
+        dlBtn.style.display = 'none';
+      }
+    }
+
   } catch (err) {
     document.getElementById('modal-header').innerHTML =
       `<p style="color:var(--danger)">${escapeHtml(err.message)}</p>`;
@@ -477,7 +492,7 @@ async function markApplied() {
 let _toastTimer = null;
 function showToast(message, type = 'info') {
   const toast = document.getElementById('toast');
-  toast.textContent = message;
+  toast.innerHTML = message;  // supports HTML (e.g. download links)
   toast.className = `toast ${type}`;
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => toast.classList.add('hidden'), 5000);

@@ -81,11 +81,11 @@ async def confirm(req: ConfirmRequest):
         raise HTTPException(status_code=400, detail="No pipeline result provided.")
 
     try:
-        record_id = confirm_application(
+        record_id, cover_letter_path = confirm_application(
             pipeline_result=req.pipeline_result,
             applied_date=req.applied_date,
         )
-        return {"status": "ok", "application_id": record_id}
+        return {"status": "ok", "application_id": record_id, "cover_letter_path": cover_letter_path}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save application: {str(e)}")

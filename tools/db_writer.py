@@ -3,12 +3,19 @@ db_writer.py — Layer 3 Tool: SQLite Read/Write
 
 All DB operations for the applications table.
 Never called directly by UI — only via navigation/pipeline.py.
+
+Vercel Blob integration:
+  - On Vercel, the DB lives in /tmp which is ephemeral.
+  - _pull_db_from_blob() downloads the latest DB from Blob before reads.
+  - _sync_db_to_blob() uploads the DB to Blob after every write.
+  - Both functions are no-ops locally (no BLOB_READ_WRITE_TOKEN set).
 """
 
 import sqlite3
 import uuid
 import json
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -17,17 +24,66 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
+# ─── DB Path ──────────────────────────────────────────────────────────────────
+
 if os.getenv("VERCEL"):
     DB_PATH = Path("/tmp") / "applications.db"
-    _orig = Path(__file__).parent.parent / "applications.db"
-    if _orig.exists() and not DB_PATH.exists():
-        import shutil
-        try:
-            shutil.copy(str(_orig), str(DB_PATH))
-        except Exception:
-            pass
 else:
     DB_PATH = Path(__file__).parent.parent / os.getenv("DB_PATH", "./applications.db").lstrip("./")
+
+# ─── Vercel Blob DB Sync ──────────────────────────────────────────────────────
+
+_LAST_PULL_TIME = 0.0
+_PULL_INTERVAL = 10.0  # seconds — avoid hammering Blob on every request
+
+
+def _pull_db_from_blob() -> None:
+    """Download applications.db from Vercel Blob into /tmp (Vercel only)."""
+    global _LAST_PULL_TIME
+    if not os.getenv("VERCEL") or not os.getenv("BLOB_READ_WRITE_TOKEN"):
+        return
+
+    now = time.time()
+    if now - _LAST_PULL_TIME < _PULL_INTERVAL:
+        return  # Throttle: skip if pulled recently
+
+    try:
+        from vercel import blob
+        res = blob.list_objects(prefix="db/applications.db")
+        if res.blobs:
+            DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+            blob.download_file(
+                res.blobs[0].url,
+                str(DB_PATH),
+                access="private",
+                overwrite=True,
+            )
+            print("DB: pulled applications.db from Vercel Blob.")
+            _LAST_PULL_TIME = now
+    except Exception as e:
+        print(f"DB Warning: failed to pull from Vercel Blob: {e}")
+
+
+def _sync_db_to_blob() -> None:
+    """Upload applications.db to Vercel Blob (Vercel only, after every write)."""
+    if not os.getenv("VERCEL") or not os.getenv("BLOB_READ_WRITE_TOKEN"):
+        return
+    try:
+        from vercel import blob
+        if DB_PATH.exists():
+            with open(DB_PATH, "rb") as f:
+                blob.put(
+                    path="db/applications.db",
+                    body=f,
+                    access="private",
+                    overwrite=True,
+                )
+            print("DB: backed up applications.db to Vercel Blob.")
+    except Exception as e:
+        print(f"DB Warning: failed to sync to Vercel Blob: {e}")
+
+
+# ─── Schema ───────────────────────────────────────────────────────────────────
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS applications (
@@ -47,6 +103,7 @@ CREATE TABLE IF NOT EXISTS applications (
 
 
 def _get_conn() -> sqlite3.Connection:
+    _pull_db_from_blob()
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
@@ -62,6 +119,7 @@ def init_db() -> None:
         if "cv_text_original" not in cols:
             conn.execute("ALTER TABLE applications ADD COLUMN cv_text_original TEXT DEFAULT ''")
         conn.commit()
+    _sync_db_to_blob()
 
 
 def save_application(
@@ -99,6 +157,7 @@ def save_application(
         )
         conn.commit()
 
+    _sync_db_to_blob()
     return record_id
 
 
@@ -144,4 +203,8 @@ def update_status(record_id: str, status: str) -> bool:
             (status, record_id)
         )
         conn.commit()
-        return result.rowcount > 0
+        success = result.rowcount > 0
+
+    if success:
+        _sync_db_to_blob()
+    return success

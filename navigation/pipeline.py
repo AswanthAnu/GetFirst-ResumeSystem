@@ -167,7 +167,7 @@ def run_pipeline(
 def confirm_application(
     pipeline_result: dict,
     applied_date: Optional[str] = None,
-) -> str:
+) -> tuple[str, str]:
     """
     Persist a confirmed application: write files + save to DB.
     Only called after the user explicitly clicks Confirm in the UI.
@@ -177,7 +177,7 @@ def confirm_application(
         applied_date: Optional ISO8601 date string ("YYYY-MM-DD").
 
     Returns:
-        The UUID of the saved application record.
+        tuple[str, str]: (The UUID of the saved application record, cover letter path or URL).
     """
     init_db()
 
@@ -201,11 +201,54 @@ def confirm_application(
     cv_output_path = docx_path.parent / "cv.tex"
     cv_output_path.write_text(modified_cv_latex, encoding="utf-8")
 
-    # ── Save to DB ───────────────────────────────────────────────
-    try:
-        relative_docx = str(docx_path.relative_to(_ROOT))
-    except ValueError:
-        relative_docx = str(docx_path)
+    # ── Save to DB / Vercel Blob ─────────────────────────────────
+    has_vercel_blob = bool(os.getenv("BLOB_READ_WRITE_TOKEN"))
+    relative_docx = ""
+    if has_vercel_blob:
+        try:
+            from vercel import blob
+            blob_folder = docx_path.parent.name
+            
+            # Upload DOCX
+            try:
+                with open(docx_path, "rb") as f:
+                    uploaded_docx = blob.put(
+                        path=f"applications/{blob_folder}/cover_letter.docx",
+                        body=f,
+                        access="public"
+                    )
+            except Exception:
+                with open(docx_path, "rb") as f:
+                    uploaded_docx = blob.put(
+                        path=f"applications/{blob_folder}/cover_letter.docx",
+                        body=f,
+                        access="private"
+                    )
+            relative_docx = uploaded_docx.url
+            
+            # Upload CV .tex
+            try:
+                blob.put(
+                    path=f"applications/{blob_folder}/cv.tex",
+                    body=modified_cv_latex,
+                    access="public"
+                )
+            except Exception:
+                blob.put(
+                    path=f"applications/{blob_folder}/cv.tex",
+                    body=modified_cv_latex,
+                    access="private"
+                )
+        except Exception as upload_err:
+            print(f"Warning: Vercel Blob upload failed: {upload_err}")
+            has_vercel_blob = False
+
+    if not has_vercel_blob:
+        try:
+            relative_docx = str(docx_path.relative_to(_ROOT))
+        except ValueError:
+            relative_docx = str(docx_path)
+
     record_id = save_application(
         job_title=job_title,
         company=company,
@@ -217,7 +260,7 @@ def confirm_application(
         applied_date=applied_date,
     )
 
-    return record_id
+    return record_id, relative_docx
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
