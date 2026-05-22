@@ -202,7 +202,10 @@ def confirm_application(
     cv_output_path.write_text(modified_cv_latex, encoding="utf-8")
 
     # ── Save to DB ───────────────────────────────────────────────
-    relative_docx = str(docx_path.relative_to(_ROOT))
+    try:
+        relative_docx = str(docx_path.relative_to(_ROOT))
+    except ValueError:
+        relative_docx = str(docx_path)
     record_id = save_application(
         job_title=job_title,
         company=company,
