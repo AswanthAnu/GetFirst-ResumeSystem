@@ -1,10 +1,13 @@
 """
 pipeline.py — Layer 2: Navigation / Pipeline Orchestrator
 
-Routes data between tools in strict order per cv_pipeline.md SOP.
-Does NOT perform heavy processing — it delegates entirely to Layer 3 tools.
+NEW FLOW:
+1. Read my_history.docx (career history) — source of truth for content
+2. Extract text from uploaded PDF — defines the STYLE/STRUCTURE of the output CV
+3. LLM generates a NEW tailored CV from history, matching the uploaded PDF's style
+4. Validation ensures no fabricated entities
 
-Input: PDF bytes (uploaded by user) + job description metadata
+Input: PDF bytes (uploaded by user for style) + job description metadata
 Output: Preview payload (no DB write until user Confirm)
 
 Two public functions:
@@ -12,6 +15,11 @@ Two public functions:
   confirm_application()  → saves to DB and writes output files (on user Confirm)
 """
 
+from tools.db_writer import save_application, init_db
+from tools.docx_generator import generate_docx
+from tools.validator import validate_outputs, ValidationError
+from tools.llm_handler import get_modified_outputs, LLMError
+from tools.cv_parser import extract_text_from_pdf, extract_text_from_docx, parse_cv
 import os
 import json
 import shutil
@@ -25,21 +33,17 @@ _ROOT = Path(__file__).parent.parent
 load_dotenv(_ROOT / ".env")
 
 # Layer 3 imports
-from tools.cv_parser import extract_text_from_pdf, parse_cv
-from tools.llm_handler import get_edit_plan, get_modified_outputs, LLMError
-from tools.validator import validate_edit_plan, validate_outputs, ValidationError
-from tools.docx_generator import generate_docx
-from tools.db_writer import save_application, init_db
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
 if os.getenv("VERCEL"):
     TMP_DIR = Path("/tmp") / ".tmp"
     OUTPUT_DIR = Path("/tmp") / "output"
+    HISTORY_DOC_PATH = Path("/tmp") / "my_history.docx"
 else:
     TMP_DIR = _ROOT / os.getenv("TMP_DIR", "./.tmp").lstrip("./")
     OUTPUT_DIR = _ROOT / os.getenv("OUTPUT_DIR", "./output").lstrip("./")
-MAX_EDITS = int(os.getenv("MAX_EDITS", "10"))
+    HISTORY_DOC_PATH = _ROOT / "my_history.docx"
 
 
 # ─── Pre-flight Check ─────────────────────────────────────────────────────────
@@ -55,6 +59,7 @@ def _preflight_check(pdf_bytes: bytes) -> None:
     Raises PreflightError on any failure.
     """
     api_key = os.getenv("DEEPSEEK_API_KEY", "")
+    
     if not api_key or api_key == "your_api_key_here":
         raise PreflightError(
             "DEEPSEEK_API_KEY is not set in .env. "
@@ -62,7 +67,14 @@ def _preflight_check(pdf_bytes: bytes) -> None:
         )
 
     if not pdf_bytes or len(pdf_bytes) < 100:
-        raise PreflightError("Uploaded PDF is empty or too small. Please upload a valid CV PDF.")
+        raise PreflightError(
+            "Uploaded PDF is empty or too small. Please upload a valid CV PDF.")
+
+    if not HISTORY_DOC_PATH.exists():
+        raise PreflightError(
+            f"my_history.docx not found at {HISTORY_DOC_PATH}. "
+            "Please create this file with your complete career history."
+        )
 
     # Clear .tmp directory for this run
     if TMP_DIR.exists():
@@ -83,15 +95,21 @@ def run_pipeline(
     Does NOT write to the DB or output/ folder.
     Returns a preview payload for the UI to display.
 
+    NEW FLOW:
+    1. Read my_history.docx (complete career history)
+    2. Extract text from uploaded PDF (defines the CV style/structure)
+    3. LLM generates a NEW tailored CV from history, matching the PDF's style
+    4. Validate output (no fabricated entities)
+
     Args:
-        pdf_bytes: Raw bytes of the uploaded CV PDF.
+        pdf_bytes: Raw bytes of the uploaded CV PDF (for style reference).
         job_description: Raw job description text from user.
         job_title: Job title (for metadata + cover letter).
         company: Company name (for metadata + cover letter).
 
     Returns:
         dict with keys: cv_text, modified_cv_latex, cover_letter_text,
-        key_changes_summary, analysis, edit_plan, entity_map, validation
+        key_changes_summary, history_text, entity_map, validation
 
     Raises:
         PreflightError: System not ready (missing API key or bad PDF).
@@ -102,33 +120,26 @@ def run_pipeline(
     # ── Step 1: Pre-flight Check ──────────────────────────────────
     _preflight_check(pdf_bytes)
 
-    # ── Step 2: Extract text from PDF ────────────────────────────
-    cv_text = extract_text_from_pdf(pdf_bytes)
-    (TMP_DIR / "cv_extracted.txt").write_text(cv_text, encoding="utf-8")
+    # ── Step 2: Read career history (my_history.docx) ─────────────
+    history_bytes = HISTORY_DOC_PATH.read_bytes()
+    history_text = extract_text_from_docx(history_bytes)
+    (TMP_DIR / "history_extracted.txt").write_text(history_text, encoding="utf-8")
 
-    # ── Step 3: Parse CV → Entity Map ────────────────────────────
-    entity_map = parse_cv(cv_text)
-    _write_tmp("entity_map.json", entity_map)
+    # ── Step 3: Extract text from uploaded PDF (style reference) ──
+    reference_cv_text = extract_text_from_pdf(pdf_bytes)
+    (TMP_DIR / "cv_extracted.txt").write_text(reference_cv_text, encoding="utf-8")
 
-    # ── Step 4: LLM Call 1 — Analysis + Edit Plan ────────────────
-    edit_plan_response = get_edit_plan(
-        cv_text=cv_text,
-        job_description=job_description,
-        entity_map=entity_map,
-        max_edits=MAX_EDITS,
-    )
-    _write_tmp("llm_call1_response.json", edit_plan_response)
+    # ── Step 4: Parse history → Entity Map (for validation) ───────
+    history_entity_map = parse_cv(history_text)
+    _write_tmp("history_entity_map.json", history_entity_map)
 
-    # ── Step 5: Validate Edit Plan ────────────────────────────────
-    validate_edit_plan(edit_plan_response, max_edits=MAX_EDITS)
-
-    # ── Step 6: LLM Call 2 — Generate LaTeX CV + Cover Letter ────
+    # ── Step 5: LLM Call — Generate New Tailored CV + Cover Letter ─
     output_response = get_modified_outputs(
-        cv_text=cv_text,
-        edit_plan=edit_plan_response,
+        history_text=history_text,
+        reference_cv_text=reference_cv_text,
         job_description=job_description,
     )
-    _write_tmp("llm_call2_response.json", output_response)
+    _write_tmp("llm_call_response.json", output_response)
 
     modified_cv_latex = output_response.get("modified_cv_latex", "")
     cover_letter_text = output_response.get("cover_letter_text", "")
@@ -137,22 +148,24 @@ def run_pipeline(
     # Write generated CV to .tmp for inspection
     (TMP_DIR / "generated_cv.tex").write_text(modified_cv_latex, encoding="utf-8")
 
-    # ── Step 7: Validate Outputs ──────────────────────────────────
+    # ── Step 6: Validate Outputs (against history as source of truth)
     validation_result = validate_outputs(
-        original_text=cv_text,
+        history_text=history_text,
         modified_latex=modified_cv_latex,
-        original_entity_map=entity_map,
+        history_entity_map=history_entity_map,
     )
 
-    # ── Step 8: Return Preview Payload ────────────────────────────
+    # ── Step 7: Return Preview Payload ────────────────────────────
     return {
-        "cv_text": cv_text,                          # Original plain text (for display)
-        "modified_cv_latex": modified_cv_latex,       # Generated LaTeX (for download/compile)
+        # Uploaded PDF text (style ref, for display)
+        "cv_text": reference_cv_text,
+        # Generated LaTeX (for download/compile)
+        "modified_cv_latex": modified_cv_latex,
         "cover_letter_text": cover_letter_text,
         "key_changes_summary": key_changes_summary,
-        "analysis": edit_plan_response.get("analysis", {}),
-        "edit_plan": edit_plan_response.get("edit_plan", []),
-        "entity_map": dict(entity_map),
+        # Career history (for reference)
+        "history_text": history_text,
+        "entity_map": dict(history_entity_map),
         "validation": validation_result,
         "meta": {
             "job_title": job_title,
@@ -208,7 +221,7 @@ def confirm_application(
         try:
             from vercel import blob
             blob_folder = docx_path.parent.name
-            
+
             # Upload DOCX
             try:
                 with open(docx_path, "rb") as f:
@@ -225,7 +238,7 @@ def confirm_application(
                         access="private"
                     )
             relative_docx = uploaded_docx.url
-            
+
             # Upload CV .tex
             try:
                 blob.put(

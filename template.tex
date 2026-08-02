@@ -1,84 +1,157 @@
-\documentclass[10pt,a4paper]{article}
-
+"\documentclass[10pt,a4paper]{article}
 % -------------------- Packages --------------------
-\usepackage[left=0.5in,right=0.5in,top=0.3in,bottom=0.5in]{geometry}
+\usepackage[left=0.5in,right=0.5in,top=0.35in,bottom=0.45in]{geometry}
 \usepackage{titlesec}
 \usepackage{enumitem}
 \usepackage{helvet}
 \usepackage[hidelinks]{hyperref}
 \renewcommand{\familydefault}{\sfdefault}
-
 % -------------------- Formatting --------------------
 \pagenumbering{gobble}
 \setlength{\parindent}{0pt}
-\setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}
-
+\setlist[itemize]{noitemsep, topsep=1pt, leftmargin=*}
 \titleformat{\section}
-  {\bfseries\small}
-  {}
-  {0em}
-  {}[\titlerule]
-
-% -------------------- Document --------------------
+{\bfseries\small}
+{}
+{0em}
+{}[\titlerule]
+\titlespacing*{\section}{0pt}{6pt}{4pt}
+\newcommand{\resumeSubheading}[4]{
+\textbf{#1} \hfill #2 \\
+\textit{#3} \hfill \textit{#4}
+}
 \begin{document}
-
 % -------------------- Header --------------------
-\begin{center}{\Large \textbf{Aswanth Manoharan}} \end{center}
-
 \begin{center}
-8 Costguard Terrace, Bray, Ireland l
-\href{mailto:aswanthanu2024@gmail.com}{aswanthanu2024@gmail.com}  l  
-+353 877617142  l  
-\href{https://www.linkedin.com/in/aswanth-manoharan}{LinkedIn}  l  
-\href{https://github.com/AswanthAnu}{GitHub}
+{\Large \textbf{Aswanth Manoharan}} \\[2pt]
+Bray, Ireland \textbar\
+\href{mailto:aswanthanu2024@gmail.com}{aswanthanu2024@gmail.com} \textbar\
++353 877617142 \textbar\
+\href{https://www.linkedin.com/in/aswanth-manoharan}{LinkedIn} \textbar\
+\href{https://github.com/AswanthAnu}{GitHub} \textbar\
+\href{https://aswanth-manoharan-portfolio.netlify.app/}{Portfolio}
 \end{center}
-
-\vspace{-15pt}
-
 % -------------------- Summary --------------------
-\section*{Summary}
-
-[SUMMARY_TEXT]
-
-\vspace{-8pt}
-
-% -------------------- Experience --------------------
-\section*{Experience}
-
-% FORMAT:
-% \textbf{ROLE} - COMPANY, LOCATION \hfill DATES
-% \begin{itemize}
-%   \item Bullet
-% \end{itemize}
-
-[EXPERIENCE_ENTRIES]
-
-\vspace{-8pt}
-
-% -------------------- Projects --------------------
-\section*{Projects}
-
-% FORMAT:
-% \textbf{PROJECT TITLE} \hfill YEAR \\
-% \textit{Tech Stack: ...}
-% \begin{itemize}
-%   \item Bullet
-% \end{itemize}
-
-[PROJECT_ENTRIES]
-
-\vspace{-8pt}
-
+\section{Summary}
+Software Engineer with 3+ years of experience developing API-driven applications, data workflows, cloud-based solutions, and analytics platforms using Python, SQL, FastAPI, Django, AWS, Docker, and Tableau. Experienced in data integration, workflow automation, REST APIs, data validation, stakeholder collaboration, and translating business requirements into technical solutions. MSc Data Analytics graduate passionate about enabling data-driven customer experiences through scalable technology solutions.
 % -------------------- Skills --------------------
-\section*{Skills}
-
-[SKILLS_TEXT]
-
-\vspace{-8pt}
-
+\section{Skills}
+\textbf{Programming:} Python, SQL, JavaScript Basics, HTML, CSS \\
+\textbf{Data \& Analytics:} Data Modelling, Data Analysis, Data Validation, ETL Pipelines, Data Warehousing, Pandas, NumPy, Tableau, Excel \\
+\textbf{Backend \& APIs:} FastAPI, Django, Django REST Framework, REST APIs, JSON, Pydantic, API Integration, Webhooks \\
+\textbf{Databases:} PostgreSQL, SQL Server, MySQL, Django ORM, SQL Query Optimisation \\
+\textbf{Cloud \& DevOps:} AWS EC2, AWS S3, IAM, Docker, Git, GitHub, GitHub Actions \\
+\textbf{AI \& Automation:} OpenAI API, LLM Integration, Workflow Automation, Prompt Engineering \\
+\textbf{Professional:} Agile/Scrum, Stakeholder Communication, Technical Documentation, Debugging, Business Analysis, Cross-functional Collaboration
+% -------------------- Experience --------------------
+\section{Experience}
+\resumeSubheading
+{Machine Learning Engineer}{Aug 2025 -- Present}
+{Mentika Process Outsourcing Ltd}{India \& UK (Remote)}
+\begin{itemize}
+\item Developed AI-powered backend services using Python and FastAPI to support machine learning workflows, data processing, and model integration for client applications.
+\item Preprocessed, cleaned, and engineered features on datasets containing over 50,000 records using Pandas and NumPy, reducing model training time by approximately 15\%.
+\item Built and evaluated machine learning models using Scikit-learn, applying techniques such as Logistic Regression, Support Vector Machines (SVM), and feature selection to improve prediction performance.
+\item Applied Natural Language Processing (NLP) techniques including tokenization, lemmatization, vectorization, and text preprocessing, improving sentiment analysis model accuracy by approximately 18\%.
+\item Integrated OpenAI APIs into internal AI applications to support intelligent content generation, summarization, and workflow automation.
+\item Containerized AI applications using Docker to improve deployment consistency, reproducibility, and development workflows across environments.
+\item Collaborated with data scientists and software engineers to debug machine learning pipelines, optimize model performance, and integrate AI solutions into existing systems.
+\item Documented machine learning experiments, model evaluation results, API specifications, and deployment procedures to support knowledge sharing and long-term maintainability.
+\end{itemize}
+\resumeSubheading
+{Python Backend Developer}{Jun 2024 -- May 2025}
+{HitoAI}{Dublin, Ireland}
+\begin{itemize}
+\item Developed FastAPI applications supporting API integrations, structured data processing, workflow automation, and AI-enabled business solutions.
+\item Designed REST APIs enabling secure data exchange between backend services, databases, and frontend applications.
+\item Integrated OpenAI API into production workflows, supporting intelligent content generation and automated business processes.
+\item Worked with PostgreSQL to model, validate, transform, and optimise structured data for application workflows.
+\item Supported Docker deployments on AWS EC2 while managing secure file storage using AWS S3 and IAM.
+\item Investigated production issues through log analysis, debugging, and data validation, improving backend reliability by approximately 15\%.
+\item Collaborated with cross-functional teams to translate business requirements into scalable technical solutions and presented implementation progress to stakeholders.
+\end{itemize}
+\resumeSubheading
+{Junior Python Developer}{Mar 2023 -- Apr 2024}
+{Tfora Technologies}{Kerala, India}
+\begin{itemize}
+\item Developed backend applications using Django and Django REST Framework supporting API-driven business applications.
+\item Designed REST APIs enabling integration between frontend applications, backend systems, and relational databases.
+\item Built SQL queries and Django ORM operations for efficient data retrieval, validation, and transformation.
+\item Improved API response times by approximately 20\% through SQL optimisation and efficient database design.
+\item Performed API testing, debugging, data quality validation, and issue resolution to improve application stability.
+\item Collaborated within Agile teams to deliver business features while maintaining technical documentation and Git-based version control.
+\end{itemize}
+\resumeSubheading
+{Machine Learning Intern}{Sep 2022 -- Feb 2023}
+{Ignitus}{Remote}
+\begin{itemize}
+\item Processed and analysed datasets containing over 50,000 records using Python, Pandas, NumPy, and Jupyter Notebook to support machine learning and analytical workflows.
+\item Performed data preprocessing, feature engineering, validation, and exploratory data analysis to prepare high-quality datasets.
+\item Developed a recommendation system using Scikit-learn, applying similarity analysis and model evaluation techniques.
+\item Built analytical workflows using TensorFlow and PyTorch while documenting experiments and communicating findings.
+\item Evaluated model performance using accuracy, precision, recall, F1-score, and confusion matrices to support data-driven decision making.
+\end{itemize}
+\resumeSubheading
+{Python Development Intern}{Sep 2022 -- Oct 2022}
+{Jorvice}{Remote, India}
+\begin{itemize}
+\item Developed Python-based web scraping pipelines using Scrapy to extract structured and semi-structured data from multiple web sources.
+\item Processed, validated, cleaned, and transformed extracted datasets for downstream analytical workflows.
+\item Applied XPath and HTML parsing techniques to improve extraction quality and data consistency.
+\end{itemize}
+\resumeSubheading
+{Data Science Trainee}{Apr 2022 -- Sep 2022}
+{Brototype}{Kochi, Kerala, India}
+\begin{itemize}
+\item Completed intensive training covering Python, SQL, statistics, data analytics, machine learning, and business intelligence.
+\item Built end-to-end analytical projects involving ETL workflows, exploratory data analysis, feature engineering, and predictive modelling.
+\item Developed dashboards and analytical reports using Python, Pandas, Tableau, and SQL.
+\end{itemize}
+% -------------------- Projects --------------------
+\section{Projects}
+\textbf{AI Resume Tailor (LLM + LaTeX)} \hfill 2026 \\
+\textit{Python, DeepSeek v4 Pro, LaTeX, python-docx}
+\begin{itemize}
+\item Developed an AI-powered application that analyses job descriptions and automatically generates tailored LaTeX CVs and matching cover letters.
+\item Built structured workflows for document parsing, validation, transformation, and application tracking.
+\item Designed validation layers to ensure generated content remained accurate, explainable, and aligned with source information.
+\item Automated repetitive documentation tasks while maintaining version history for every job application.
+\end{itemize}
+\textbf{ETL-Driven Data Warehouse and BI Reporting for Retail Analytics} \hfill 2024 \\
+\textit{SQL Server, SSIS, Tableau, Excel}
+\begin{itemize}
+\item Designed and implemented a star-schema data warehouse supporting business reporting and analytics.
+\item Built ETL pipelines processing over 65,000 records while maintaining high data quality and consistency.
+\item Developed SQL-based data transformation, validation, and reporting workflows supporting business users.
+\item Created Tableau dashboards visualising KPIs and operational performance for data-driven decision making.
+\end{itemize}
+\textbf{E-Commerce Platform} \hfill 2024 \\
+\textit{Django, React, PostgreSQL, AWS EC2}
+\begin{itemize}
+\item Developed a full-stack web application integrating frontend, backend, and relational database systems.
+\item Built REST APIs supporting authentication, search, product management, filtering, and order management.
+\item Designed relational database structures and optimised SQL queries for efficient application performance.
+\item Deployed the application on AWS EC2 using Docker and Git-based deployment workflows.
+\end{itemize}
+\textbf{Real-Time Fall Detection System Using YOLOv11} \hfill 2025 \\
+\textit{Python, Django, OpenCV, PyTorch, WebSockets}
+\begin{itemize}
+\item Developed a real-time AI application integrating computer vision with Django backend services.
+\item Processed streaming video data and delivered AI inference results through WebSocket communication.
+\item Presented system architecture, implementation approach, and analytical performance to an academic evaluation panel.
+\end{itemize}
 % -------------------- Education --------------------
-\section*{Education}
-
-[EDUCATION_ENTRIES]
-
-\end{document}
+\section{Education}
+\resumeSubheading
+{MSc in Data Analytics}{2024 -- 2025}
+{Dublin Business School}{Dublin, Ireland}
+\begin{itemize}
+\item Relevant Coursework: Data Analytics, Data Warehousing, Business Intelligence, Machine Learning, Artificial Intelligence, Database Systems, Cloud Computing, Statistical Analysis, and Data Visualization.
+\item Completed projects involving ETL pipelines, API integrations, data modelling, cloud deployment, business intelligence dashboards, and workflow automation.
+\item Master's dissertation focused on developing a real-time fall detection system using YOLOv11, computer vision, and Django for real-time data processing and analytics.
+\end{itemize}
+\vspace{3pt}
+\resumeSubheading
+{BSc in Chemistry and Industrial Chemistry}{2017 -- 2020}
+{University of Kerala}{Kerala, India}
+\end{document}"

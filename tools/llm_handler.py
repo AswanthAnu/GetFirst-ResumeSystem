@@ -10,6 +10,7 @@ Call 2: get_modified_outputs() → Modified CV LaTeX + Cover Letter
 
 import os
 import json
+import re
 import requests
 from pathlib import Path
 from typing import Any
@@ -26,7 +27,8 @@ MAX_EDITS = int(os.getenv("MAX_EDITS", "10"))
 # Reasoning models (deepseek-v4-pro, deepseek-reasoner, etc.) do not support
 # response_format json_object. They also need explicit instruction to output
 # raw JSON since they natively produce reasoning_content.
-_IS_REASONING_MODEL = "reasoner" in MODEL.lower() or "v4-pro" in MODEL.lower() or "r1" in MODEL.lower()
+_IS_REASONING_MODEL = "reasoner" in MODEL.lower(
+) or "v4-pro" in MODEL.lower() or "r1" in MODEL.lower()
 
 
 # ─── JSON Schemas (as strings, injected into prompts) ─────────────────────────
@@ -103,28 +105,30 @@ Produce your analysis and edit plan now. Maximum {max_edits} edits. Only use ent
 SYSTEM_PROMPT_CALL_2 = """You are a professional LaTeX CV writer and editor.
 
 You will receive:
-1. The candidate's original CV as plain text (extracted from a PDF compiled by Overleaf)
-2. An approved edit plan specifying exactly what to change
-3. A job description (for the cover letter only)
-4. A LaTeX TEMPLATE that defines the exact layout, style, and section structure to use
+1. The candidate's COMPLETE CAREER HISTORY (extracted from their personal history document)
+2. A REFERENCE CV (plain text extracted from an uploaded PDF) — this defines the STYLE, STRUCTURE, and SECTIONS the output should follow
+3. A JOB DESCRIPTION — this determines WHAT content to include from the history and how to emphasize it
 
 Your tasks:
-A) Generate a complete LaTeX CV by filling the TEMPLATE with content from the CV + exactly the edits in the edit plan.
+A) Generate a NEW complete LaTeX CV from the career history, STRUCTURED TO MATCH the reference CV's style.
+   - Use the reference CV's section headings, ordering, and overall layout as your template.
+   - Fill each section with the MOST RELEVANT content from the career history, tailored to the job description.
+   - Only include information that exists in the career history — do not fabricate anything.
 B) Write a professional plain-text cover letter for the job.
 
 CRITICAL RULES:
-1. Apply ONLY the edits listed in the edit plan. No additional changes beyond what is specified.
-2. Use the EXACT preamble, style, packages, and section structure from the TEMPLATE below.
-3. Replace placeholder text in brackets (e.g. [FIRST], [SUMMARY_TEXT]) with actual CV content.
-4. Preserve ALL original content exactly — same companies, roles, dates, and technologies.
-5. DO NOT add any companies, roles, technologies, or experiences not in the original CV.
-6. DO NOT change any dates, timelines, or durations.
-7. The LaTeX document must be complete and compilable, matching the TEMPLATE structure.
-8. The cover letter must be plain text only — no LaTeX commands, no markdown.
-9. The cover letter must reference ONLY experiences and skills present in the original CV.
-10. key_changes_summary: provide at most 10 concise bullet-point summaries of what changed.
+1. SOURCE OF TRUTH: The career history document contains ALL facts. Never invent companies, roles, dates, technologies, or achievements.
+2. You may SELECT and OMIT from the history to tailor the CV — that's the point of tailoring.
+3. You may REPHRASE bullet points from the history, but never change facts.
+4. Use the reference CV's structure — section names, ordering, general formatting. Follow its preamble/style.
+5. The job description tells you what to emphasize — prioritize matching experience/skills in the CV.
+6. Keep the CV to 1-2 pages. Be concise and impactful.
+7. The cover letter must reference ONLY experiences and skills present in the career history.
+8. Include personal info (name, email, phone, location, LinkedIn, GitHub) from the history.
+9. The LaTeX document must be complete and compilable.
+10. key_changes_summary: provide at most 10 concise bullet-point summaries describing what was included/highlighted from the history and why.
 
-LATEX TEMPLATE (follow this exact structure, style, and formatting):
+REFERENCE CV STYLE (follow this structure, formatting, and section layout):
 ---
 {template}
 ---
@@ -132,22 +136,22 @@ LATEX TEMPLATE (follow this exact structure, style, and formatting):
 Return ONLY valid JSON matching this exact schema — no explanation, no preamble, no markdown:
 {schema}"""
 
-USER_PROMPT_CALL_2 = """ORIGINAL CV (plain text, from PDF):
+USER_PROMPT_CALL_2 = """CAREER HISTORY (complete facts — use ONLY this as source of truth):
 ---
-{cv_text}
----
-
-APPROVED EDIT PLAN:
----
-{edit_plan_json}
+{history_text}
 ---
 
-JOB DESCRIPTION (for cover letter only):
+REFERENCE CV STYLE (plain text from uploaded PDF — follow its section structure and formatting):
+---
+{reference_cv_text}
+---
+
+JOB DESCRIPTION (use to determine what to highlight and include):
 ---
 {job_description}
 ---
 
-Generate the complete LaTeX CV with edits applied and write the cover letter."""
+Generate a NEW complete LaTeX CV tailored to this job. Use the reference CV's structure/style but populate it from the career history. Write a compelling cover letter too."""
 
 
 # ─── API Call Helper ──────────────────────────────────────────────────────────
@@ -206,9 +210,11 @@ def _call_api(system_prompt: str, user_prompt: str, temperature: float = 0.3) ->
     except requests.exceptions.Timeout:
         raise LLMError("LLM API request timed out after 120 seconds.")
     except requests.exceptions.ConnectionError:
-        raise LLMError("LLM API connection failed. Check your internet connection.")
+        raise LLMError(
+            "LLM API connection failed. Check your internet connection.")
     except requests.exceptions.HTTPError as e:
-        raise LLMError(f"LLM API HTTP error {e.response.status_code}: {e.response.text[:500]}")
+        raise LLMError(
+            f"LLM API HTTP error {e.response.status_code}: {e.response.text[:500]}")
 
     data = response.json()
     message = data["choices"][0]["message"]
@@ -243,7 +249,8 @@ def _call_api(system_prompt: str, user_prompt: str, temperature: float = 0.3) ->
     try:
         return json.loads(content)
     except json.JSONDecodeError as e:
-        raise LLMError(f"LLM returned malformed JSON: {e}\nRaw response: {content[:500]}")
+        raise LLMError(
+            f"LLM returned malformed JSON: {e}\nRaw response: {content[:500]}")
 
 
 # ─── Public API ───────────────────────────────────────────────────────────────
@@ -286,17 +293,17 @@ def get_edit_plan(
 
 
 def get_modified_outputs(
-    cv_text: str,
-    edit_plan: dict,
+    history_text: str,
+    reference_cv_text: str,
     job_description: str,
 ) -> dict[str, Any]:
     """
-    LLM Call 2: Apply the validated edit plan and generate LaTeX CV + cover letter.
+    LLM Call: Generate a NEW tailored LaTeX CV + cover letter from career history.
 
     Args:
-        cv_text: Plain text CV content extracted from the uploaded PDF.
-        edit_plan: Validated edit plan dict from get_edit_plan().
-        job_description: Raw job description (for cover letter context only).
+        history_text: Plain text from the candidate's complete career history (my_history.docx).
+        reference_cv_text: Plain text extracted from the uploaded PDF CV (defines style/structure).
+        job_description: Raw job description text.
 
     Returns:
         Parsed dict with 'modified_cv_latex', 'cover_letter_text', 'key_changes_summary'.
@@ -304,39 +311,22 @@ def get_modified_outputs(
     Raises:
         LLMError: If the API call fails.
     """
-    # Read the user's LaTeX template if present
+    # Use template.tex for the EXACT LaTeX style
+    from pathlib import Path
     template_path = Path(__file__).parent.parent / "template.tex"
     if template_path.exists():
         template_text = template_path.read_text(encoding="utf-8")
     else:
-        # Fallback: legacy default template (moderncv classic/blue)
-        template_text = r"""\documentclass[11pt,a4paper,sans]{moderncv}
-\moderncvstyle{classic}
-\moderncvcolor{blue}
-\usepackage[scale=0.75]{geometry}
-\name{[FIRST]}{[LAST]}
-\address{[ADDRESS]}{}{}
-\phone[mobile]{[PHONE]}
-\email{[EMAIL]}
-\social[linkedin]{[LINKEDIN]}
-\social[github]{[GITHUB]}
-\begin{document}
-\makecvtitle
-\section{Summary}
-[SUMMARY_TEXT]
-\section{Experience}
-\section{Projects}
-\section{Skills}
-\section{Education}
-\end{document}"""
+        # Fallback: use the reference CV text (plain text from uploaded PDF)
+        template_text = reference_cv_text
 
     system_prompt = SYSTEM_PROMPT_CALL_2.format(
         template=template_text,
         schema=OUTPUT_SCHEMA,
     )
     user_prompt = USER_PROMPT_CALL_2.format(
-        cv_text=cv_text,
-        edit_plan_json=json.dumps(edit_plan, indent=2),
+        history_text=history_text,
+        reference_cv_text=reference_cv_text,
         job_description=job_description,
     )
 

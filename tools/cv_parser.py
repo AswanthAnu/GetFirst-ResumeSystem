@@ -118,6 +118,58 @@ def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     return "\n\n".join(pages)
 
 
+# ─── DOCX Extraction ──────────────────────────────────────────────────────────
+
+def extract_text_from_docx(docx_bytes: bytes) -> str:
+    """
+    Extract plain text from a DOCX file's bytes.
+
+    Uses python-docx to read paragraphs and tables.
+
+    Args:
+        docx_bytes: Raw bytes of the DOCX file.
+
+    Returns:
+        Extracted plain text string.
+
+    Raises:
+        ValueError: If the DOCX cannot be read or yields no text.
+    """
+    try:
+        from docx import Document
+    except ImportError:
+        raise ImportError(
+            "python-docx is not installed. Run: pip install python-docx"
+        )
+
+    try:
+        doc = Document(io.BytesIO(docx_bytes))
+    except Exception as e:
+        raise ValueError(f"Could not read DOCX file: {e}")
+
+    parts = []
+
+    # Extract paragraphs
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if text:
+            parts.append(text)
+
+    # Extract tables
+    for table in doc.tables:
+        for row in table.rows:
+            row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
+            if row_text:
+                parts.append(row_text)
+
+    if not parts:
+        raise ValueError(
+            "Could not extract any text from the DOCX. Make sure it contains text content."
+        )
+
+    return "\n".join(parts)
+
+
 # ─── Date Patterns ────────────────────────────────────────────────────────────
 
 DATE_PATTERNS = [
