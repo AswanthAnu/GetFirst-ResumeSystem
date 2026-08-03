@@ -39,7 +39,7 @@ load_dotenv(_ROOT / ".env")
 if os.getenv("VERCEL"):
     TMP_DIR = Path("/tmp") / ".tmp"
     OUTPUT_DIR = Path("/tmp") / "output"
-    HISTORY_DOC_PATH = Path("/tmp") / "my_history.docx"
+    HISTORY_DOC_PATH = _ROOT / "my_history.docx"
 else:
     TMP_DIR = _ROOT / os.getenv("TMP_DIR", "./.tmp").lstrip("./")
     OUTPUT_DIR = _ROOT / os.getenv("OUTPUT_DIR", "./output").lstrip("./")
@@ -59,7 +59,7 @@ def _preflight_check(pdf_bytes: bytes) -> None:
     Raises PreflightError on any failure.
     """
     api_key = os.getenv("DEEPSEEK_API_KEY", "")
-    
+
     if not api_key or api_key == "your_api_key_here":
         raise PreflightError(
             "DEEPSEEK_API_KEY is not set in .env. "
